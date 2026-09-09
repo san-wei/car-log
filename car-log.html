@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="愛車紀錄">
+<title>愛車紀錄</title>
+<style>
+  :root{
+    --bg:#15171A;
+    --surface:#1D2023;
+    --surface-2:#262A2D;
+    --line:#33383C;
+    --text:#EDEAE4;
+    --text-muted:#8D9297;
+    --text-faint:#5B6166;
+
+    --mileage:#6C93B5;
+    --mileage-soft:rgba(108,147,181,0.14);
+    --maint:#C98A2E;
+    --maint-soft:rgba(201,138,46,0.14);
+    --repair:#A66B8E;
+    --repair-soft:rgba(166,107,142,0.14);
+    --mod:#4F9270;
+    --mod-soft:rgba(79,146,112,0.14);
+    --danger:#C1584E;
+
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "PingFang TC", "Heiti TC", "Segoe UI", Roboto, sans-serif;
+    --radius: 12px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+    -webkit-tap-highlight-color:transparent;
+    min-height:100vh;
+    overscroll-behavior-y:none;
+  }
+  .app{
+    max-width:520px;
+    margin:0 auto;
+    min-height:100vh;
+    padding: calc(20px + env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom));
+  }
+
+  header.top{
+    padding-bottom:14px;
+    margin-bottom:14px;
+  }
+  header.top h1{
+    font-size:20px;
+    margin:0 0 4px;
+    font-weight:650;
+    letter-spacing:0.2px;
+  }
+  header.top p{
+    margin:0;
+    font-size:12.5px;
+    color:var(--text-faint);
+  }
+
+  /* Main section switcher */
+  nav.sections{
+    display:flex;
+    gap:8px;
+    margin-bottom:20px;
+  }
+  nav.sections button{
+    flex:1;
+    padding:12px 6px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    background:var(--surface);
+    color:var(--text-muted);
+    font-size:14px;
+    font-weight:600;
+    font-family:var(--sans);
+  }
+  nav.sections button.active[data-section="mileage"]{border-color:var(--mileage);color:var(--mileage);background:var(--mileage-soft);}
+  nav.sections button.active[data-section="service"]{border-color:var(--maint);color:var(--maint);background:var(--maint-soft);}
+
+  .section{display:none;}
+  .section.active{display:block;}
+
+  /* Readout card */
+  .readout{
+    background:linear-gradient(180deg, var(--surface), var(--bg));
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:18px 18px 16px;
+    margin-bottom:16px;
+  }
+  .readout .label{
+    font-size:12px;
+    color:var(--text-faint);
+    margin-bottom:6px;
+  }
+  .readout-number{
+    font-family:var(--mono);
+    font-size:32px;
+    font-weight:600;
+    letter-spacing:0.3px;
+  }
+  .readout-unit{
+    font-size:13px;
+    color:var(--text-muted);
+    margin-left:5px;
+  }
+  .readout-sub{
+    margin-top:6px;
+    font-size:12px;
+    color:var(--text-faint);
+  }
+
+  /* Filter tabs (service categories) */
+  .tabs{
+    display:flex;
+    gap:2px;
+    margin-bottom:16px;
+    border-bottom:1px solid var(--line);
+  }
+  .tabs button{
+    flex:1;
+    background:none;
+    border:none;
+    color:var(--text-muted);
+    font-family:var(--sans);
+    font-size:13.5px;
+    padding:9px 4px 11px;
+    position:relative;
+  }
+  .tabs button.active{color:var(--text);font-weight:600;}
+  .tabs button.active::after{
+    content:"";
+    position:absolute;
+    left:14%;right:14%;bottom:-1px;
+    height:2px;border-radius:2px;
+    background:var(--tab-color, var(--text));
+  }
+  .tabs button[data-cat="all"].active{--tab-color:#B8BCC0;}
+  .tabs button[data-cat="maintenance"].active{--tab-color:var(--maint);color:var(--maint);}
+  .tabs button[data-cat="repair"].active{--tab-color:var(--repair);color:var(--repair);}
+  .tabs button[data-cat="mod"].active{--tab-color:var(--mod);color:var(--mod);}
+
+  /* Add button */
+  .add-btn{
+    width:100%;
+    padding:13px;
+    border-radius:var(--radius);
+    border:1px dashed var(--line);
+    background:var(--surface);
+    color:var(--text-muted);
+    font-size:14px;
+    font-weight:600;
+    margin-bottom:20px;
+  }
+  .add-btn:active{opacity:0.7;}
+
+  .empty{
+    text-align:center;
+    color:var(--text-faint);
+    font-size:13.5px;
+    padding:44px 10px;
+    border:1px dashed var(--line);
+    border-radius:var(--radius);
+  }
+
+  /* Entries */
+  .entry{
+    border:1px solid var(--line);
+    border-left:3px solid var(--cat-color, var(--line));
+    border-radius:10px;
+    padding:13px 14px;
+    margin-bottom:10px;
+    background:var(--surface);
+  }
+  .entry.mileage-entry{--cat-color:var(--mileage);}
+  .entry.maintenance{--cat-color:var(--maint);}
+  .entry.repair{--cat-color:var(--repair);}
+  .entry.mod{--cat-color:var(--mod);}
+
+  .entry-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:10px;
+    margin-bottom:6px;
+  }
+  .entry-date{
+    font-size:11px;
+    color:var(--text-faint);
+    font-family:var(--mono);
+  }
+  .entry-mileage{
+    font-size:11px;
+    color:var(--text-faint);
+    font-family:var(--mono);
+  }
+  .entry-title-row{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    margin-bottom:4px;
+    flex-wrap:wrap;
+  }
+  .tag{
+    font-size:10.5px;
+    padding:2px 8px;
+    border-radius:5px;
+    font-weight:600;
+  }
+  .tag.maintenance{background:var(--maint-soft);color:var(--maint);}
+  .tag.repair{background:var(--repair-soft);color:var(--repair);}
+  .tag.mod{background:var(--mod-soft);color:var(--mod);}
+  .entry-item{
+    font-size:15px;
+    font-weight:600;
+  }
+  .entry-big{
+    font-family:var(--mono);
+    font-size:20px;
+    font-weight:650;
+  }
+  .entry-meta{
+    font-size:12.5px;
+    color:var(--text-muted);
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-bottom:2px;
+  }
+  .entry-note{
+    font-size:12.5px;
+    color:var(--text-muted);
+    margin-top:4px;
+    overflow-wrap:break-word;
+  }
+  .entry-del{
+    background:none;
+    border:none;
+    color:var(--text-faint);
+    font-size:11.5px;
+    padding:6px 0 0;
+  }
+
+  /* Sheet / modal */
+  .overlay{
+    position:fixed;inset:0;
+    background:rgba(0,0,0,0.55);
+    display:none;
+    align-items:flex-end;
+    z-index:50;
+  }
+  .overlay.open{display:flex;}
+  .sheet{
+    width:100%;
+    max-width:520px;
+    margin:0 auto;
+    background:var(--surface);
+    border-radius:18px 18px 0 0;
+    padding:20px 18px calc(20px + env(safe-area-inset-bottom));
+    max-height:86vh;
+    overflow-y:auto;
+  }
+  .sheet h2{
+    font-size:17px;
+    margin:0 0 16px;
+    font-weight:650;
+  }
+  .field{margin-bottom:13px;}
+  .field label{
+    display:block;
+    font-size:12px;
+    color:var(--text-muted);
+    margin-bottom:5px;
+  }
+  .field input,
+  .field select,
+  .field textarea{
+    width:100%;
+    background:var(--surface-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    border-radius:8px;
+    padding:10px 11px;
+    font-family:var(--sans);
+    font-size:14.5px;
+  }
+  .field textarea{resize:vertical;min-height:56px;}
+  .cat-choice{
+    display:flex;
+    gap:8px;
+  }
+  .cat-choice label{
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:10px 4px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    background:var(--surface-2);
+    color:var(--text-muted);
+    font-size:13.5px;
+    cursor:pointer;
+  }
+  .cat-choice input{display:none;}
+  .cat-choice label:has(input[value="maintenance"]:checked){border-color:var(--maint);color:var(--maint);background:var(--maint-soft);}
+  .cat-choice label:has(input[value="repair"]:checked){border-color:var(--repair);color:var(--repair);background:var(--repair-soft);}
+  .cat-choice label:has(input[value="mod"]:checked){border-color:var(--mod);color:var(--mod);background:var(--mod-soft);}
+
+  .sheet-actions{
+    display:flex;
+    gap:10px;
+    margin-top:6px;
+  }
+  .sheet-actions button{
+    flex:1;
+    padding:12px;
+    border-radius:9px;
+    font-size:14.5px;
+    font-weight:650;
+    border:none;
+    font-family:var(--sans);
+  }
+  .cancel-btn{background:var(--surface-2);color:var(--text-muted);}
+  .save-btn{background:var(--maint);color:#1A1305;}
+  .save-btn.mileage{background:var(--mileage);color:#101820;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>愛車紀錄</h1>
+    <p>里程紀錄，跟保養／維修／改裝紀錄，分開記</p>
+  </header>
+
+  <nav class="sections" id="sections">
+    <button class="active" data-section="mileage">里程</button>
+    <button data-section="service">保養／維修／改裝</button>
+  </nav>
+
+  <!-- ===== Mileage section ===== -->
+  <section class="section active" id="section-mileage">
+    <div class="readout">
+      <div class="label">最新里程</div>
+      <div class="readout-number num" id="mileage-display">-<span class="readout-unit">km</span></div>
+      <div class="readout-sub" id="mileage-sub"></div>
+    </div>
+    <button class="add-btn" id="btn-add-mileage">＋ 新增里程紀錄</button>
+    <div id="mileage-list"></div>
+  </section>
+
+  <!-- ===== Service section ===== -->
+  <section class="section" id="section-service">
+    <div class="tabs" id="service-tabs">
+      <button class="active" data-cat="all">全部</button>
+      <button data-cat="maintenance">保養</button>
+      <button data-cat="repair">維修</button>
+      <button data-cat="mod">改裝</button>
+    </div>
+    <button class="add-btn" id="btn-add-service">＋ 新增紀錄</button>
+    <div id="service-list"></div>
+  </section>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<script>
+(function(){
+  var STORAGE_KEY = "carLogApp.v2";
+  var state = load();
+
+  function load(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return { mileageLogs: [], serviceLogs: [], serviceFilter: "all" };
+  }
+  function save(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+  function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
+  function todayStr(){
+    var d = new Date();
+    var m = String(d.getMonth()+1).padStart(2,"0");
+    var day = String(d.getDate()).padStart(2,"0");
+    return d.getFullYear()+"-"+m+"-"+day;
+  }
+  function fmtDate(s){
+    if(!s) return "";
+    var p = s.split("-");
+    return p[0]+"/"+p[1]+"/"+p[2];
+  }
+  function fmtNum(n){
+    n = Number(n)||0;
+    return n.toLocaleString("zh-Hant");
+  }
+  function n(v){ var x = parseFloat(v); return isNaN(x)?0:x; }
+  function escapeHtml(s){
+    return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  var CAT_LABEL = { maintenance:"保養", repair:"維修", mod:"改裝" };
+
+  /* ---------- section switcher ---------- */
+  document.getElementById("sections").addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    document.querySelectorAll("nav.sections button").forEach(function(b){ b.classList.toggle("active", b===btn); });
+    document.getElementById("section-mileage").classList.toggle("active", btn.dataset.section==="mileage");
+    document.getElementById("section-service").classList.toggle("active", btn.dataset.section==="service");
+  });
+
+  /* ================= MILEAGE ================= */
+  function sortedMileage(){
+    return state.mileageLogs.slice().sort(function(a,b){ return b.date.localeCompare(a.date) || b.createdAt-a.createdAt; });
+  }
+  function renderMileage(){
+    var list = sortedMileage();
+    var latest = list[0];
+    document.getElementById("mileage-display").innerHTML = (latest ? fmtNum(latest.mileage) : "-") + '<span class="readout-unit">km</span>';
+    document.getElementById("mileage-sub").textContent = latest ? ("紀錄於 " + fmtDate(latest.date)) : "還沒有任何紀錄";
+
+    var body = document.getElementById("mileage-list");
+    if(list.length===0){
+      body.innerHTML = '<div class="empty">還沒有里程紀錄，點上面「＋ 新增里程紀錄」開始記</div>';
+      return;
+    }
+    var html = "";
+    list.forEach(function(l, idx){
+      var prev = list[idx+1];
+      var diff = prev ? (l.mileage - prev.mileage) : null;
+      html += '<div class="entry mileage-entry">';
+      html += '<div class="entry-top"><span class="entry-date">'+fmtDate(l.date)+'</span>';
+      if(diff!==null && diff>0) html += '<span class="entry-mileage">+'+fmtNum(diff)+' km</span>';
+      html += '</div>';
+      html += '<div class="entry-big num">'+fmtNum(l.mileage)+'<span class="readout-unit">km</span></div>';
+      if(l.note) html += '<div class="entry-note">'+escapeHtml(l.note)+'</div>';
+      html += '<button class="entry-del" data-del-mileage="'+l.id+'">刪除</button>';
+      html += '</div>';
+    });
+    body.innerHTML = html;
+    body.querySelectorAll("[data-del-mileage]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        if(confirm("刪除這筆里程紀錄？")){
+          state.mileageLogs = state.mileageLogs.filter(function(l){ return l.id !== btn.dataset.delMileage; });
+          save(); renderMileage();
+        }
+      });
+    });
+  }
+
+  document.getElementById("btn-add-mileage").addEventListener("click", function(){
+    var latest = sortedMileage()[0];
+    showSheet(
+      '<h2>新增里程紀錄</h2>'+
+      '<div class="field"><label>日期</label><input id="f-date" type="date" value="'+todayStr()+'"></div>'+
+      '<div class="field"><label>里程數</label><input id="f-mileage" type="number" inputmode="numeric" placeholder="'+(latest?fmtNum(latest.mileage):"0")+'"></div>'+
+      '<div class="field"><label>備註（選填）</label><input id="f-note" placeholder=""></div>',
+      function(){
+        var mileage = n(document.getElementById("f-mileage").value);
+        if(mileage<=0){ alert("請輸入里程數"); return false; }
+        state.mileageLogs.push({
+          id: uid(),
+          date: document.getElementById("f-date").value || todayStr(),
+          mileage: mileage,
+          note: document.getElementById("f-note").value.trim(),
+          createdAt: Date.now()
+        });
+        save(); renderMileage();
+        return true;
+      },
+      "mileage"
+    );
+  });
+
+  /* ================= SERVICE (保養/維修/改裝) ================= */
+  document.getElementById("service-tabs").addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    state.serviceFilter = btn.dataset.cat;
+    save();
+    renderServiceTabs();
+    renderService();
+  });
+  function renderServiceTabs(){
+    document.querySelectorAll("#service-tabs button").forEach(function(b){
+      b.classList.toggle("active", b.dataset.cat === state.serviceFilter);
+    });
+  }
+
+  function renderService(){
+    var body = document.getElementById("service-list");
+    var logs = state.serviceLogs
+      .filter(function(l){ return state.serviceFilter==="all" || l.category===state.serviceFilter; })
+      .sort(function(a,b){ return b.date.localeCompare(a.date) || b.createdAt-a.createdAt; });
+
+    if(logs.length===0){
+      body.innerHTML = '<div class="empty">'+(state.serviceFilter==="all" ? "還沒有任何紀錄，點上面「＋ 新增紀錄」開始記" : "這個類別還沒有紀錄")+'</div>';
+      return;
+    }
+    var html = "";
+    logs.forEach(function(l){
+      html += '<div class="entry '+l.category+'">';
+      html += '<div class="entry-top"><span class="entry-date">'+fmtDate(l.date)+'</span>';
+      html += '<span class="entry-mileage">'+(l.mileage ? fmtNum(l.mileage)+' km' : '')+'</span></div>';
+      html += '<div class="entry-title-row"><span class="tag '+l.category+'">'+CAT_LABEL[l.category]+'</span>';
+      html += '<span class="entry-item">'+escapeHtml(l.item)+'</span></div>';
+      var metaParts = [];
+      if(l.cost) metaParts.push('花費 $'+fmtNum(l.cost));
+      if(l.shop) metaParts.push(escapeHtml(l.shop));
+      if(metaParts.length) html += '<div class="entry-meta">'+metaParts.map(function(m){return '<span>'+m+'</span>';}).join("")+'</div>';
+      if(l.note) html += '<div class="entry-note">'+escapeHtml(l.note)+'</div>';
+      html += '<button class="entry-del" data-del-service="'+l.id+'">刪除</button>';
+      html += '</div>';
+    });
+    body.innerHTML = html;
+    body.querySelectorAll("[data-del-service]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        if(confirm("刪除這筆紀錄？")){
+          state.serviceLogs = state.serviceLogs.filter(function(l){ return l.id !== btn.dataset.delService; });
+          save(); renderService();
+        }
+      });
+    });
+  }
+
+  document.getElementById("btn-add-service").addEventListener("click", function(){
+    var defaultCat = state.serviceFilter !== "all" ? state.serviceFilter : "maintenance";
+    showSheet(
+      '<h2>新增紀錄</h2>'+
+      '<div class="field"><label>類別</label>'+
+      '<div class="cat-choice">'+
+        '<label><input type="radio" name="cat" value="maintenance" '+(defaultCat==="maintenance"?"checked":"")+'><span>保養</span></label>'+
+        '<label><input type="radio" name="cat" value="repair" '+(defaultCat==="repair"?"checked":"")+'><span>維修</span></label>'+
+        '<label><input type="radio" name="cat" value="mod" '+(defaultCat==="mod"?"checked":"")+'><span>改裝</span></label>'+
+      '</div></div>'+
+      '<div class="field"><label>日期</label><input id="f-date" type="date" value="'+todayStr()+'"></div>'+
+      '<div class="field"><label>項目</label><input id="f-item" placeholder="例如：更換機油、四輪定位、加裝行車紀錄器"></div>'+
+      '<div class="field"><label>里程數（選填）</label><input id="f-mileage" type="number" inputmode="numeric" placeholder="0"></div>'+
+      '<div class="field"><label>花費（選填）</label><input id="f-cost" type="number" inputmode="numeric" placeholder="0"></div>'+
+      '<div class="field"><label>店家（選填）</label><input id="f-shop" placeholder=""></div>'+
+      '<div class="field"><label>備註（選填）</label><textarea id="f-note"></textarea></div>',
+      function(){
+        var item = document.getElementById("f-item").value.trim();
+        if(!item){ alert("請輸入項目"); return false; }
+        var cat = document.querySelector('input[name="cat"]:checked').value;
+        state.serviceLogs.push({
+          id: uid(),
+          category: cat,
+          date: document.getElementById("f-date").value || todayStr(),
+          item: item,
+          mileage: n(document.getElementById("f-mileage").value) || null,
+          cost: n(document.getElementById("f-cost").value),
+          shop: document.getElementById("f-shop").value.trim(),
+          note: document.getElementById("f-note").value.trim(),
+          createdAt: Date.now()
+        });
+        save(); renderService();
+        return true;
+      }
+    );
+  });
+
+  /* ---------- sheet engine ---------- */
+  var overlay = document.getElementById("overlay");
+  var sheetEl = document.getElementById("sheet");
+  function showSheet(innerHtml, onSave, kind){
+    sheetEl.innerHTML = innerHtml + '<div class="sheet-actions"><button class="cancel-btn" id="sheet-cancel">取消</button><button class="save-btn'+(kind==="mileage"?" mileage":"")+'" id="sheet-save">儲存</button></div>';
+    overlay.classList.add("open");
+    document.getElementById("sheet-cancel").addEventListener("click", closeSheet);
+    document.getElementById("sheet-save").addEventListener("click", function(){
+      var ok = onSave();
+      if(ok !== false) closeSheet();
+    });
+  }
+  function closeSheet(){
+    overlay.classList.remove("open");
+    sheetEl.innerHTML = "";
+  }
+  overlay.addEventListener("click", function(e){
+    if(e.target === overlay) closeSheet();
+  });
+
+  /* ---------- init ---------- */
+  renderServiceTabs();
+  renderMileage();
+  renderService();
+})();
+</script>
+</body>
+</html>
